@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>內部同仁專屬選品</title>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <style>
+        :root { --primary-color: #333333; --bg-color: #FAFAFA; --border-color: #E6E6E6; --text-main: #4A4A4A; --text-muted: #888888; }
+        body { font-family: 'Noto Sans TC', sans-serif; background-color: var(--bg-color); color: var(--text-main); margin: 0; padding: 0; line-height: 1.8; letter-spacing: 0.5px; }
+        
+        header { text-align: center; padding: 70px 20px 40px; position: relative; }
+        .top-nav { position: absolute; top: 20px; right: 20px; display: flex; gap: 15px; align-items: center; }
+        .nav-btn { background: transparent; border: none; font-size: 14px; color: var(--text-main); cursor: pointer; transition: 0.3s; font-family: inherit; font-weight: 500; }
+        .nav-btn:hover { color: #000; text-decoration: underline; }
+        header h1 { font-size: 28px; font-weight: 500; margin: 0; color: var(--text-main); letter-spacing: 4px; }
+        .btn-outline { padding: 10px 20px; border: 1px solid var(--border-color); background: transparent; color: var(--text-main); border-radius: 4px; cursor: pointer; transition: 0.3s; font-size: 13px; font-family: inherit; }
+        .btn-outline:hover { border-color: var(--primary-color); }
+        .floating-cart-btn { position: fixed; bottom: 30px; right: 30px; background-color: var(--primary-color); color: #fff; border: none; border-radius: 50px; padding: 15px 25px; cursor: pointer; z-index: 900; transition: 0.3s; font-family: inherit; box-shadow: 0 10px 20px rgba(0,0,0,0.1); font-weight: 500; }
+        .floating-cart-btn:hover { transform: translateY(-3px); box-shadow: 0 15px 25px rgba(0,0,0,0.2); }
+
+        .product-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 40px; max-width: 1100px; margin: 0 auto; padding: 20px 20px 80px; }
+        .product-card { background-color: #FFF; border: 1px solid var(--border-color); border-radius: 8px; padding: 25px; display: flex; flex-direction: column; transition: transform 0.3s ease, box-shadow 0.3s ease; }
+        .product-card:hover { transform: translateY(-5px); box-shadow: 0 15px 35px rgba(0,0,0,0.05); }
+        .product-image { width: 100%; aspect-ratio: 1/1; object-fit: cover; background-color: #F5F5F5; border-radius: 4px; margin-bottom: 20px; cursor: pointer; transition: opacity 0.3s; border: 1px solid #EEE;}
+        .product-image:hover { opacity: 0.85; }
+        .product-title { font-size: 18px; margin: 0 0 5px 0; font-weight: 500; color: var(--primary-color); text-align: center; }
+        .product-price { font-size: 15px; color: var(--text-main); margin-bottom: 15px; text-align: center; font-weight: 500; }
+        .product-short-desc { font-size: 13px; color: var(--text-muted); line-height: 1.6; text-align: center; margin-bottom: 15px; flex-grow: 1; }
+        .more-btn { background: none; border: none; color: #888; font-size: 12px; cursor: pointer; text-decoration: underline; margin-bottom: 20px; transition: 0.3s; font-family: inherit; }
+        .more-btn:hover { color: var(--primary-color); }
+
+        .action-group { display: flex; gap: 8px; margin-top: auto; }
+        .qty-select { flex: 1; padding: 10px; border: 1px solid var(--border-color); border-radius: 4px; text-align: center; outline: none; font-family: inherit; }
+        .add-to-cart-btn { flex: 2; background-color: var(--bg-color); color: var(--text-main); border: 1px solid var(--border-color); border-radius: 4px; cursor: pointer; transition: 0.3s; font-family: inherit; font-size: 14px; font-weight: 500; }
+        .add-to-cart-btn:hover { background-color: var(--primary-color); color: #FFF; border-color: var(--primary-color); }
+
+        .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255,255,255,0.9); z-index: 1000; display: flex; justify-content: center; align-items: center; opacity: 0; visibility: hidden; transition: 0.4s; backdrop-filter: blur(5px); }
+        .modal-overlay.active { opacity: 1; visibility: visible; }
+        .modal-content { background: #FFF; padding: 40px; border-radius: 8px; max-width: 450px; width: 85%; position: relative; max-height: 85vh; overflow-y: auto; box-shadow: 0 20px 40px rgba(0,0,0,0.1); border: 1px solid var(--border-color); }
+        .modal-close { position: absolute; top: 15px; right: 20px; font-size: 28px; background: none; border: none; cursor: pointer; color: #CCC; transition: 0.3s; }
+        .modal-close:hover { color: var(--primary-color); }
+        #detail-img { width: 100%; border-radius: 4px; height: auto; margin-bottom: 20px; }
+        
+        .form-control { width: 100%; box-sizing: border-box; padding: 14px 12px; border: 1px solid var(--border-color); border-radius: 4px; font-family: inherit; font-size: 14px; outline: none; transition: 0.3s; margin-bottom: 15px;}
+        .form-control:focus { border-color: var(--primary-color); }
+        .btn-primary { width: 100%; padding: 14px; background: var(--primary-color); color: #FFF; border: none; border-radius: 4px; font-size: 15px; cursor: pointer; font-family: inherit; font-weight: 500; transition: 0.3s; }
+        .btn-primary:hover { background: #000; }
+
+        .auth-tabs { display: flex; margin-bottom: 25px; border-bottom: 1px solid var(--border-color); }
+        .auth-tab { flex: 1; text-align: center; padding: 10px; cursor: pointer; color: var(--text-muted); font-weight: 500; transition: 0.3s; border-bottom: 2px solid transparent; }
+        .auth-tab.active { color: var(--primary-color); border-bottom: 2px solid var(--primary-color); }
+        .auth-section { display: none; }
+        .auth-section.active { display: block; }
+        .forgot-link { display: block; text-align: right; font-size: 12px; color: var(--text-muted); margin-top: -5px; margin-bottom: 20px; cursor: pointer; text-decoration: underline; }
+
+        .order-history-card { border: 1px solid var(--border-color); border-radius: 4px; padding: 20px; margin-bottom: 15px; font-size: 14px; background: #FAFAFA; }
+        .order-status { display: inline-block; padding: 4px 10px; background: #EAEAEA; border-radius: 20px; font-size: 12px; margin-bottom: 12px; color: #555;}
+        
+        #cart-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.3); z-index: 998; opacity: 0; visibility: hidden; transition: 0.3s; }
+        #cart-drawer { position: fixed; top: 0; right: -450px; width: 400px; max-width: 90%; height: 100%; background-color: #FFF; z-index: 999; transition: right 0.4s cubic-bezier(0.25, 0.8, 0.25, 1); display: flex; flex-direction: column; box-shadow: -5px 0 20px rgba(0,0,0,0.05); }
+        .cart-open #cart-overlay { opacity: 1; visibility: visible; }
+        .cart-open #cart-drawer { right: 0; }
+        .cart-header { padding: 25px 20px; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; }
+        .cart-body { padding: 20px; overflow-y: auto; flex: 1; }
+        .cart-item { display: flex; align-items: center; justify-content: space-between; padding-bottom: 15px; border-bottom: 1px solid #F5F5F5; margin-bottom: 15px; }
+        .qty-controls { display: flex; align-items: center; gap: 10px; }
+        .qty-btn { border: 1px solid var(--border-color); border-radius: 4px; background: #FFF; width: 28px; height: 28px; cursor: pointer; color: var(--text-main); }
+        .form-group label { display: block; margin-bottom: 8px; font-size: 13px; color: var(--text-muted); }
+        .hidden { display: none; }
+        .cart-footer { padding: 25px 20px; border-top: 1px solid var(--border-color); background-color: #FFF; }
+
+        #toast { position: fixed; top: 40px; left: 50%; transform: translateX(-50%) translateY(-20px); background-color: var(--primary-color); color: #FFF; padding: 12px 30px; border-radius: 30px; font-size: 14px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); opacity: 0; visibility: hidden; transition: 0.4s ease; z-index: 1100; }
+        #toast.show { opacity: 1; visibility: visible; transform: translateX(-50%) translateY(0); }
+        #toast.error { background-color: #D9534F; }
+    </style>
+</head>
+<body>
+
+    <div id="toast"></div>
+    <button class="floating-cart-btn" onclick="toggleCart()">🛒 購物車 (<span id="cart-count">0</span>)</button>
+
+    <header>
+        <div class="top-nav">
+            <button class="btn-outline" onclick="openOrdersModal()">🔍 訂單查詢</button>
+            <button id="login-status-btn" class="nav-btn" onclick="openLoginModal()">👤 會員登入 / 註冊</button>
+        </div>
+        <h1>內部同仁選品</h1>
+    </header>
+
+    <main class="product-grid" id="product-container">
+        <p style="text-align: center; grid-column: 1/-1; color: var(--text-muted);">正在為您載入最新商品...</p>
+    </main>
+
+    <!-- 👤 登入/註冊 Modal -->
+    <div id="login-modal" class="modal-overlay" onclick="closeModal(event, 'login-modal')">
+        <div class="modal-content" onclick="event.stopPropagation()">
+            <button class="modal-close" onclick="closeModal(null, 'login-modal')">×</button>
+            
+            <div class="auth-tabs">
+                <div id="tab-login" class="auth-tab active" onclick="switchTab('login')">會員登入</div>
+                <div id="tab-register" class="auth-tab" onclick="switchTab('register')">註冊帳號</div>
+            </div>
+
+            <!-- 登入區塊 -->
+            <div id="section-login" class="auth-section active">
+                <input type="text" id="login-account" class="form-control" placeholder="工號 或 手機號碼">
+                <input type="password" id="login-pwd" class="form-control" placeholder="請輸入密碼">
+                <span class="forgot-link" onclick="forgotPassword()">忘記密碼？</span>
+                <button id="btn-login" class="btn-primary" onclick="processLogin()">登入</button>
+            </div>
+
+            <!-- 註冊區塊 -->
+            <div id="section-register" class="auth-section">
+                <input type="text" id="reg-empid" class="form-control" placeholder="公司工號 (非員工免填)">
+                <input type="text" id="reg-name" class="form-control" placeholder="中文姓名 (必填)">
+                <input type="tel" id="reg-phone" class="form-control" placeholder="手機號碼 10 碼 (必填)" maxlength="10">
+                <input type="password" id="reg-pwd" class="form-control" placeholder="設定登入密碼 (必填)">
+                <button id="btn-register" class="btn-primary" onclick="processRegister()">完成註冊</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 詳情、訂單、購物車 Modal HTML -->
+    <div id="product-modal" class="modal-overlay" onclick="closeModal(event, 'product-modal')">
+        <div class="modal-content" onclick="event.stopPropagation()">
+            <button class="modal-close" onclick="closeModal(null, 'product-modal')">×</button>
+            <img id="detail-img" src="">
+            <h2 id="detail-title" style="margin-top:0; font-size: 20px; font-weight: 500;"></h2>
+            <div id="detail-price" style="color:var(--text-main); font-weight: 500; margin-bottom:20px; font-size: 16px;"></div>
+            <div id="detail-desc" style="font-size: 14px; line-height: 1.8; color: var(--text-muted); white-space: pre-wrap;"></div>
+        </div>
+    </div>
+
+    <div id="orders-modal" class="modal-overlay" onclick="closeModal(event, 'orders-modal')">
+        <div class="modal-content" onclick="event.stopPropagation()">
+            <button class="modal-close" onclick="closeModal(null, 'orders-modal')">×</button>
+            <h2 style="margin-top:0; font-size: 18px; font-weight: 500;">我的訂單查詢</h2>
+            <div style="display:flex; gap:10px; margin-top:20px;">
+                <input type="tel" id="search-phone" class="form-control" style="margin-bottom:0;" placeholder="輸入手機 10 碼" maxlength="10">
+                <button class="btn-outline" style="white-space:nowrap;" onclick="fetchOrders()">查詢</button>
+            </div>
+            <div id="order-loading" style="display:none; text-align:center; margin-top:20px; color:var(--text-muted); font-size: 14px;">資料讀取中...</div>
+            <div id="order-history-list" style="margin-top:20px;"></div>
+        </div>
+    </div>
+
+    <div id="cart-overlay" onclick="toggleCart()"></div>
+    <div id="cart-drawer">
+        <div class="cart-header"><h2>購物車明細</h2><button class="modal-close" style="position:static; padding:0;" onclick="toggleCart()">×</button></div>
+        <div class="cart-body">
+            <div id="cart-items-container"></div>
+            <div class="checkout-form" id="checkout-form" style="display: none; margin-top: 30px; border-top: 1px solid #eee; padding-top: 20px;">
+                <h3 style="font-size: 16px; font-weight: 500; margin-bottom: 20px;">配送與結帳資訊</h3>
+                <div class="form-group"><label>運送方式</label><select id="shipping" class="form-control" onchange="handleShippingChange()"><option value="">請選擇</option><option value="廠區自取">廠區自取</option><option value="冷藏宅配">冷藏宅配</option><option value="冷凍宅配">冷凍宅配</option></select></div>
+                <div class="form-group hidden" id="pickup-location-group"><label>自取廠區</label><select id="pickup-location" class="form-control"><option value="">請選擇</option><option value="PDC">PDC</option><option value="展業">展業</option><option value="德安">德安</option><option value="廣源">廣源</option><option value="中科">中科</option><option value="南科">南科</option></select></div>
+                <div class="form-group"><label>付款方式</label><select id="payment" class="form-control"><option value="">請選擇</option><option value="取貨時現金付款">現金付款</option><option value="Line Pay付款">Line Pay</option><option value="信用卡付款">信用卡</option></select></div>
+                <div class="form-group"><label>收件人姓名</label><input type="text" id="rec-name" class="form-control"></div>
+                <div class="form-group"><label>收件人手機 (10碼)</label><input type="tel" id="rec-phone" class="form-control" maxlength="10"></div>
+                <div class="form-group" id="address-group"><label>收件地址</label><input type="text" id="address" class="form-control"></div>
+                <div class="form-group"><label>備註 (選填)</label><textarea id="notes" class="form-control" rows="2"></textarea></div>
+            </div>
+        </div>
+        <div class="cart-footer">
+            <div style="display:flex; justify-content:space-between; margin-bottom:20px; font-size:16px;"><span>總計金額</span><span id="cart-total-price" style="font-weight: 700;">NT$ 0</span></div>
+            <button class="btn-primary" onclick="submitOrder()" id="submit-btn">確認結帳</button>
+        </div>
+    </div>
+
+    <script>
+        const API_URL = "https://script.google.com/macros/s/AKfycbwX2slyQNnUTZSyq8luIeEnHccphUKT-VwBUrRGOj42wBnbJ1Mj3BYKYPoiKB0Ast1X/exec";
+        
+        let cart =[]; 
+        let toastTimeout;
+        let globalProducts =[];
+        let currentUser = { name: '', phone: '', empId: '' };
+
+        // 💡 換回無版權 Unsplash 直連圖片 (不需 API Key)
+        function getSmartImage(name, originalUrl) {
+            if (originalUrl && originalUrl.trim() !== '') return originalUrl;
+            
+            if (name.includes("洗手乳") || name.includes("清潔")) 
+                return "https://images.unsplash.com/photo-1584305574647-0cc9b9ec2c95?w=500&q=80";
+            
+            if (name.includes("肉粽") || name.includes("端午") || name.includes("粽")) 
+                return "https://images.unsplash.com/photo-1580436541340-e7b1658cb0a1?w=500&q=80"; // 竹葉與米食的意象
+            
+            if (name.includes("月餅") || name.includes("中秋")) 
+                return "https://images.unsplash.com/photo-1601314115886-081075677d24?w=500&q=80"; // 傳統糕點
+            
+            if (name.includes("咖啡") || name.includes("豆")) 
+                return "https://images.unsplash.com/photo-1559525839-b184a4d698c7?w=500&q=80";
+            
+            // 預設質感圖
+            return "https://images.unsplash.com/photo-1600857062241-98e5dba7f214?w=500&q=80";
+        }
+
+        function showToast(msg, isError = false) {
+            const t = document.getElementById("toast");
+            t.innerText = msg; t.className = isError ? "show error" : "show";
+            clearTimeout(toastTimeout); toastTimeout = setTimeout(() => t.classList.remove("show"), 3000);
+        }
+        function isValidPhone(p) { return /^\d{10}$/.test(p); }
+
+        function openLoginModal() {
+            if (currentUser.name) {
+                if(confirm(`目前登入為：${currentUser.name}\n是否要登出？`)) {
+                    currentUser = { name: '', phone: '', empId: '' };
+                    document.getElementById("login-status-btn").innerText = "👤 會員登入 / 註冊";
+                    showToast("已成功登出");
+                }
+            } else {
+                document.getElementById("login-modal").classList.add("active");
+                switchTab('login');
+            }
+        }
+
+        function switchTab(tab) {
+            document.getElementById("tab-login").classList.remove("active");
+            document.getElementById("tab-register").classList.remove("active");
+            document.getElementById("section-login").classList.remove("active");
+            document.getElementById("section-register").classList.remove("active");
+            
+            document.getElementById("tab-" + tab).classList.add("active");
+            document.getElementById("section-" + tab).classList.add("active");
+        }
+
+        function processLogin() {
+            const account = document.getElementById("login-account").value.trim();
+            const pwd = document.getElementById("login-pwd").value.trim();
+
+            if (!account || !pwd) return showToast("請輸入帳號與密碼！", true);
+
+            const btn = document.getElementById("btn-login");
+            btn.innerText = "驗證中..."; btn.disabled = true;
+
+            fetch(`${API_URL}?action=login&account=${encodeURIComponent(account)}&pwd=${encodeURIComponent(pwd)}`)
+            .then(res => res.json())
+            .then(data => {
+                if (data.status === "Error") showToast(`❌ ${data.msg}`, true);
+                else {
+                    currentUser = { name: data.name, phone: data.phone, empId: account };
+                    document.getElementById("login-status-btn").innerText = `👤 您好，${data.name}`;
+                    closeModal(null, 'login-modal');
+                    showToast(`🎉 ${data.msg}`);
+                }
+                btn.innerText = "登入"; btn.disabled = false;
+            }).catch(() => { showToast("❌ 連線錯誤", true); btn.innerText = "登入"; btn.disabled = false; });
+        }
+
+        function processRegister() {
+            const empId = document.getElementById("reg-empid").value.trim();
+            const name = document.getElementById("reg-name").value.trim();
+            const phone = document.getElementById("reg-phone").value.trim();
+            const pwd = document.getElementById("reg-pwd").value.trim();
+
+            if (!name || !pwd) return showToast("姓名與密碼為必填！", true);
+            if (!isValidPhone(phone)) return showToast("請輸入正確 10 碼手機！", true);
+
+            const btn = document.getElementById("btn-register");
+            btn.innerText = "註冊中..."; btn.disabled = true;
+
+            fetch(`${API_URL}?action=register&empId=${encodeURIComponent(empId)}&name=${encodeURIComponent(name)}&phone=${encodeURIComponent(phone)}&pwd=${encodeURIComponent(pwd)}`)
+            .then(res => res.json())
+            .then(data => {
+                if (data.status === "Error") showToast(`❌ ${data.msg}`, true);
+                else {
+                    showToast(`🎉 ${data.msg}`);
+                    switchTab('login');
+                    document.getElementById("login-account").value = phone;
+                }
+                btn.innerText = "完成註冊"; btn.disabled = false;
+            }).catch(() => { showToast("❌ 連線錯誤", true); btn.innerText = "完成註冊"; btn.disabled = false; });
+        }
+
+        function forgotPassword() {
+            const account = prompt("請輸入您註冊時的手機號碼或工號：");
+            if (!account) return;
+            
+            fetch(`${API_URL}?action=forgot&account=${encodeURIComponent(account.trim())}`)
+            .then(res => res.json())
+            .then(data => {
+                if (data.status === "Error") alert("❌ " + data.msg);
+                else alert("🔑 " + data.msg); 
+            });
+        }
+
+        window.onload = function() {
+            fetch(`${API_URL}?action=getAdminProducts`)
+            .then(res => res.json())
+            .then(products => {
+                const container = document.getElementById("product-container");
+                const activeProducts = products.filter(p => p.status === "上架");
+                globalProducts = activeProducts; 
+                
+                if(activeProducts.length === 0) {
+                    container.innerHTML = "<p style='text-align:center; grid-column: 1/-1; color: var(--text-muted);'>目前沒有上架的商品，請通知管理員。</p>";
+                    return;
+                }
+
+                let htmlContent = ""; 
+                activeProducts.forEach((p, index) => {
+                    const selectId = `qty-item${index}`;
+                    let finalImg = getSmartImage(p.name, p.img);
+                    let safeDesc = p.desc || '暫無描述';
+                    let shortDesc = safeDesc.length > 50 ? safeDesc.substring(0, 50) + '...' : safeDesc;
+                    
+                    htmlContent += `
+                    <article class="product-card">
+                        <img class="product-image" src="${finalImg}" onclick="showProduct(${index})" alt="${p.name}">
+                        <h2 class="product-title">${p.name}</h2>
+                        <div class="product-price">員工價 NT$ ${p.price}</div>
+                        <p class="product-short-desc">${shortDesc}</p>
+                        <button class="more-btn" onclick="showProduct(${index})">瞭解更多 &gt;</button>
+                        
+                        <div class="action-group">
+                            <select id="${selectId}" class="qty-select">
+                                <option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5">5</option>
+                            </select>
+                            <button class="add-to-cart-btn" onclick="addToCart(${index}, '${selectId}')">加入購物車</button>
+                        </div>
+                    </article>`;
+                });
+                container.innerHTML = htmlContent;
+            });
+        };
+
+        function showProduct(index) {
+            const product = globalProducts[index];
+            document.getElementById("detail-title").innerText = product.name;
+            document.getElementById("detail-price").innerText = `員工價 NT$ ${product.price}`;
+            document.getElementById("detail-img").src = getSmartImage(product.name, product.img);
+            document.getElementById("detail-desc").innerText = product.desc || '無詳細說明';
+            document.getElementById("product-modal").classList.add("active");
+        }
+
+        function addToCart(index, selectId) {
+            const product = globalProducts[index];
+            const qty = parseInt(document.getElementById(selectId).value);
+            const item = cart.find(i => i.name === product.name);
+            if (item) item.qty += qty;
+            else cart.push({ id: Date.now(), name: product.name, price: product.price, qty, checked: true });
+            showToast(`已加入：${product.name} x ${qty}`); document.getElementById(selectId).value = "1"; renderCart();
+        }
+
+        function renderCart() {
+            const c = document.getElementById("cart-items-container"); c.innerHTML = ""; let total = 0, count = 0;
+            if (cart.length === 0) { c.innerHTML = "<p style='text-align:center; margin-top:50px; color: var(--text-muted);'>購物車目前是空的</p>"; document.getElementById("checkout-form").style.display = "none"; } 
+            else {
+                document.getElementById("checkout-form").style.display = "block";
+                cart.forEach((item, i) => {
+                    count += item.qty; if (item.checked) total += item.price * item.qty;
+                    c.innerHTML += `<div class="cart-item"><input type="checkbox" ${item.checked ? 'checked' : ''} onchange="cart[${i}].checked=!cart[${i}].checked; renderCart();"><div style="flex:1; margin-left:15px;"><p style="margin:0 0 5px; font-size:14px; color: var(--text-main);">${item.name}</p><p style="margin:0; font-size:13px; color: var(--text-muted);">NT$ ${item.price}</p></div><div class="qty-controls"><button class="qty-btn" onclick="cart[${i}].qty=Math.max(1, cart[${i}].qty-1); renderCart();">-</button><span style="font-size: 14px; width: 20px; text-align: center;">${item.qty}</span><button class="qty-btn" onclick="cart[${i}].qty+=1; renderCart();">+</button></div><div style="font-weight:500; width:70px; text-align:right; margin-left:10px; font-size:14px;">NT$ ${item.price * item.qty}</div><button style="border:none; background:none; color:#D9534F; cursor:pointer; margin-left:10px; font-size: 12px;" onclick="cart.splice(${i},1); renderCart();">刪除</button></div>`;
+                });
+            }
+            document.getElementById("cart-count").innerText = count; document.getElementById("cart-total-price").innerText = `NT$ ${total}`;
+        }
+
+        function openOrdersModal() {
+            if (currentUser.phone) document.getElementById("search-phone").value = currentUser.phone;
+            document.getElementById("orders-modal").classList.add("active"); document.getElementById("order-history-list").innerHTML = ""; 
+        }
+
+        function closeModal(event, modalId) { if (event === null || event.target.id === modalId) document.getElementById(modalId).classList.remove("active"); }
+
+        function fetchOrders() {
+            const phone = document.getElementById("search-phone").value.trim();
+            if (!isValidPhone(phone)) return showToast("請輸入 10 碼數字", true);
+            document.getElementById("order-loading").style.display = "block"; document.getElementById("order-history-list").innerHTML = "";
+            fetch(`${API_URL}?action=getOrders&phone=${phone}`).then(res => res.json()).then(data => {
+                document.getElementById("order-loading").style.display = "none"; const list = document.getElementById("order-history-list");
+                if (data.length === 0) return list.innerHTML = "<p style='text-align:center; color: var(--text-muted);'>查無紀錄</p>";
+                let htmlContent = "";
+                data.forEach(order => {
+                    htmlContent += `<div class="order-history-card"><div class="order-status">${order.status}</div><div style="color:var(--text-muted); font-size:12px; margin-bottom:12px;">訂購時間：${new Date(order.date).toLocaleString('zh-TW')}</div><div style="white-space:pre-wrap; margin-bottom:15px; color: var(--text-main); line-height: 1.6;">${order.details}</div><div style="font-weight:500; text-align:right; border-top: 1px solid #EAEAEA; padding-top: 10px;">總計 NT$ ${order.total}</div></div>`;
+                });
+                list.innerHTML = htmlContent;
+            });
+        }
+
+        function handleShippingChange() {
+            const s = document.getElementById("shipping").value; const pGroup = document.getElementById("pickup-location-group"); const aGroup = document.getElementById("address-group");
+            if (currentUser.name) { document.getElementById("rec-name").value = currentUser.name; document.getElementById("rec-phone").value = currentUser.phone; }
+            if (s === "廠區自取") { pGroup.classList.remove("hidden"); aGroup.classList.add("hidden"); } else { pGroup.classList.add("hidden"); aGroup.classList.remove("hidden"); }
+        }
+
+        function toggleCart() { document.body.classList.toggle("cart-open"); }
+
+        function submitOrder() {
+            if (!currentUser.name || !currentUser.phone) { toggleCart(); openLoginModal(); return showToast("⚠️ 結帳前請先登入或註冊會員！", true); }
+            const checked = cart.filter(i => i.checked);
+            if (checked.length === 0) return showToast("未勾選商品", true);
+            const shipping = document.getElementById("shipping").value; const pickup = document.getElementById("pickup-location").value; const payment = document.getElementById("payment").value; const rName = document.getElementById("rec-name").value.trim(); const rPhone = document.getElementById("rec-phone").value.trim(); const address = document.getElementById("address").value.trim();
+            if (!shipping || !payment || !rName) return showToast("有必填資訊未填寫", true);
+            if (!isValidPhone(rPhone)) return showToast("收件人手機格式錯誤", true);
+            if (shipping === "廠區自取" && !pickup) return showToast("請選擇自取廠區", true);
+            if (shipping !== "廠區自取" && !address) return showToast("請填寫配送地址", true);
+
+            const data = new URLSearchParams({ action: 'checkout', buyerName: currentUser.name, buyerPhone: currentUser.phone, recName: rName, recPhone: rPhone, shipping, pickupLocation: pickup, payment, address, email: "", orderDetails: checked.map(i => `${i.name} (x${i.qty})`).join(" \n "), totalAmount: checked.reduce((s, i) => s + (i.price * i.qty), 0), notes: document.getElementById("notes").value.trim() });
+            const btn = document.getElementById("submit-btn"); btn.innerText = "傳送中..."; btn.disabled = true;
+
+            fetch(API_URL, { method: 'POST', mode: 'no-cors', body: data }).then(() => {
+                showToast("🎉 訂單成立！"); cart = cart.filter(i => !i.checked); renderCart(); toggleCart(); btn.innerText = "確認結帳"; btn.disabled = false;
+            }).catch(() => { showToast("連線錯誤，請稍後再試", true); btn.innerText = "確認結帳"; btn.disabled = false; });
+        }
+    </script>
+</body>
+</html>

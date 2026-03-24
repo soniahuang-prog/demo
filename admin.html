@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>商品上架管理中心</title>
+    <!-- 引入思源黑體，維持與前台一致的無印風格 -->
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <style>
+        :root { --primary: #333333; --bg: #FAFAFA; --border: #E6E6E6; --text-main: #4A4A4A; --danger: #D9534F; }
+        body { font-family: 'Noto Sans TC', sans-serif; background-color: var(--bg); color: var(--text-main); margin: 0; padding: 40px 20px; line-height: 1.6;}
+        .container { max-width: 1200px; margin: 0 auto; background: #FFF; padding: 40px; border: 1px solid var(--border); border-radius: 8px; box-shadow: 0 10px 30px rgba(0,0,0,0.02); }
+        h1 { text-align: center; color: var(--primary); letter-spacing: 2px; font-weight: 500; margin-bottom: 40px; font-size: 24px; }
+        .toolbar { display: flex; justify-content: space-between; margin-bottom: 20px; }
+        .btn { padding: 12px 24px; font-size: 14px; cursor: pointer; border: none; border-radius: 4px; letter-spacing: 1px; transition: 0.3s; color: #FFF; font-family: inherit; font-weight: 500; }
+        .btn-add { background-color: #FFF; color: var(--primary); border: 1px solid var(--primary); } 
+        .btn-add:hover { background-color: var(--primary); color: #FFF; }
+        .btn-save { background-color: var(--primary); } 
+        .btn-save:hover { background-color: #000; }
+        .btn-delete { background-color: #FFF; color: var(--danger); border: 1px solid var(--danger); padding: 8px 12px; font-size: 13px; } 
+        .btn-delete:hover { background-color: var(--danger); color: #FFF; }
+        
+        table { width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: 14px; }
+        th, td { border-bottom: 1px solid var(--border); padding: 16px 10px; text-align: center; vertical-align: middle; }
+        th { color: #888; font-weight: 500; padding-bottom: 20px; }
+        
+        input[type="text"], input[type="number"] { width: 90%; padding: 12px; border: 1px solid var(--border); border-radius: 4px; outline: none; box-sizing: border-box; text-align: center; font-family: inherit; transition: 0.3s; }
+        input[type="text"]:focus, input[type="number"]:focus { border-color: var(--primary); }
+        .status-select { padding: 10px; border: 1px solid var(--border); border-radius: 4px; outline: none; font-family: inherit; cursor: pointer; }
+        
+        /* 圖片預覽小圖（加上滑鼠放大圖示） */
+        .img-preview { width: 60px; height: 60px; object-fit: cover; border-radius: 4px; background-color: #F5F5F5; border: 1px solid #EEE; cursor: zoom-in; transition: 0.3s; }
+        .img-preview:hover { opacity: 0.8; box-shadow: 0 4px 8px rgba(0,0,0,0.1); }
+        
+        #loading { text-align: center; color: #888; margin: 50px 0; font-size: 16px; }
+        
+        #toast { position: fixed; top: 30px; left: 50%; transform: translateX(-50%) translateY(-20px); background-color: var(--primary); color: #FFF; padding: 12px 24px; border-radius: 30px; font-size: 14px; opacity: 0; visibility: hidden; transition: 0.3s; z-index: 1100; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+        #toast.show { opacity: 1; visibility: visible; transform: translateX(-50%) translateY(0); }
+        #toast.error { background-color: var(--danger); }
+
+        /* 💡 新增：圖片放大 Modal 樣式 */
+        .preview-modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 9999; display: flex; justify-content: center; align-items: center; opacity: 0; visibility: hidden; transition: 0.3s; backdrop-filter: blur(5px); }
+        .preview-modal-overlay.active { opacity: 1; visibility: visible; }
+        .preview-modal-content { position: relative; max-width: 90%; max-height: 90%; }
+        .preview-modal-close { position: absolute; top: -40px; right: 0; font-size: 30px; background: none; border: none; cursor: pointer; color: #FFF; transition: 0.3s; }
+        .preview-modal-close:hover { color: #CCC; }
+    </style>
+</head>
+<body>
+    <div id="toast"></div>
+    
+    <div class="container">
+        <h1>內部選品 - 商品上架中心</h1>
+        <div id="loading">讀取商品資料中，請稍候...</div>
+        <div id="dashboard-section" style="display: none;">
+            <div class="toolbar">
+                <button class="btn btn-add" onclick="addNewRow()">＋ 新增商品列</button>
+                <button class="btn btn-save" id="save-btn" onclick="saveData()">💾 儲存變更並發佈</button>
+            </div>
+            <table>
+                <thead>
+                    <tr>
+                        <th width="10%">預覽圖</th>
+                        <th width="20%">商品名稱</th>
+                        <th width="10%">員工價</th>
+                        <th width="20%">圖片網址 (直接貼上網址)</th>
+                        <th width="25%">商品描述</th>
+                        <th width="10%">狀態</th>
+                        <th width="5%">操作</th>
+                    </tr>
+                </thead>
+                <tbody id="product-tbody"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- 💡 新增：點擊放大的圖片視窗 HTML -->
+    <div id="image-preview-modal" class="preview-modal-overlay" onclick="closeImagePreview()">
+        <div class="preview-modal-content" onclick="event.stopPropagation()">
+            <button class="preview-modal-close" onclick="closeImagePreview()">×</button>
+            <img id="enlarged-img" src="" style="max-width: 100%; border-radius: 8px; max-height: 80vh; object-fit: contain; box-shadow: 0 10px 30px rgba(0,0,0,0.5);">
+        </div>
+    </div>
+
+    <script>
+        // 👇 👇 ⚠️ 記得把這裡換成你正式的 API_URL！
+        const API_URL = "https://script.google.com/macros/s/AKfycbwX2slyQNnUTZSyq8luIeEnHccphUKT-VwBUrRGOj42wBnbJ1Mj3BYKYPoiKB0Ast1X/exec";
+        
+        let toastTimeout;
+
+        function showToast(msg, isError = false) {
+            const t = document.getElementById("toast");
+            t.innerText = msg; t.className = isError ? "show error" : "show";
+            clearTimeout(toastTimeout); toastTimeout = setTimeout(() => t.classList.remove("show"), 3000);
+        }
+
+        // 解析 Google Drive 網址，如果是一般網址（Unsplash、圖床）則原封不動回傳
+        function formatImageUrl(url) {
+            if (!url) return '';
+            if (url.includes('drive.google.com/file/d/')) {
+                const match = url.match(/\/d\/(.+?)\//);
+                if (match && match[1]) {
+                    return `https://drive.google.com/uc?export=view&id=${match[1]}`;
+                }
+            }
+            return url;
+        }
+
+        // 後台用的 SVG 佔位圖產生器
+        function generateMujiPlaceholder(text) {
+            let displayText = text || '無商品';
+            if (displayText.length > 5) displayText = displayText.substring(0, 4) + '..';
+            return `data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='150' height='150'><rect width='150' height='150' fill='%23F5F5F5'/><rect x='5' y='5' width='140' height='140' fill='none' stroke='%23EAEAEA' stroke-width='2'/><text x='50%' y='50%' font-family='sans-serif' font-size='16' fill='%23888' text-anchor='middle' dominant-baseline='middle'>${displayText}</text></svg>`;
+        }
+
+        window.onload = function() {
+            fetch(`${API_URL}?action=getAdminProducts`)
+            .then(res => res.json())
+            .then(products => {
+                document.getElementById("loading").style.display = "none";
+                document.getElementById("dashboard-section").style.display = "block";
+                renderTable(products);
+            }).catch(err => {
+                document.getElementById("loading").innerHTML = `連線失敗 ❌ <br><span style="font-size:14px; color:#D9534F;">無法取得資料，請檢查 API 網址是否正確。</span>`;
+            });
+        };
+
+        function renderTable(products) {
+            const tbody = document.getElementById("product-tbody");
+            tbody.innerHTML = "";
+            if(products.length === 0) addNewRow();
+            else products.forEach(p => addRowHTML(p.id, p.name, p.price, p.img, p.desc, p.status));
+        }
+
+        function addRowHTML(id = "", name = "", price = "", img = "", desc = "", status = "上架") {
+            const tbody = document.getElementById("product-tbody");
+            const tr = document.createElement("tr");
+            
+            const formattedImg = formatImageUrl(img);
+            const previewSrc = formattedImg || generateMujiPlaceholder(name);
+
+            // 💡 img 標籤已加入 onclick="openImagePreview(this.src)"
+            tr.innerHTML = `
+                <td>
+                    <input type="hidden" class="p-id" value="${id}">
+                    <img src="${previewSrc}" class="img-preview" alt="預覽" title="點擊放大預覽"
+                         onclick="openImagePreview(this.src)"
+                         onerror="this.onerror=null; this.src=generateMujiPlaceholder(this.closest('tr').querySelector('.p-name').value);">
+                </td>
+                <td><input type="text" class="p-name" value="${name}" placeholder="如: 洗手乳" onkeyup="updateImgFallback(this)"></td>
+                <td><input type="number" class="p-price" value="${price}" placeholder="輸入數字" min="0"></td>
+                <td><input type="text" class="p-img" value="${img}" placeholder="貼上圖片直接連結" onchange="updateImg(this)"></td>
+                <td><input type="text" class="p-desc" value="${desc}" placeholder="簡單描述"></td>
+                <td>
+                    <select class="status-select p-status">
+                        <option value="上架" ${status === '上架' ? 'selected' : ''}>上架 🟢</option>
+                        <option value="下架" ${status === '下架' ? 'selected' : ''}>下架 🔴</option>
+                    </select>
+                </td>
+                <td><button class="btn btn-delete" onclick="this.closest('tr').remove()">刪除</button></td>
+            `;
+            tbody.appendChild(tr);
+        }
+
+        function addNewRow() { 
+            addRowHTML(); 
+            setTimeout(() => window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' }), 100);
+        }
+        
+        function updateImg(input) {
+            const tr = input.closest('tr');
+            const imgEl = tr.querySelector('.img-preview');
+            const nameEl = tr.querySelector('.p-name');
+            const formatted = formatImageUrl(input.value);
+            imgEl.src = formatted || generateMujiPlaceholder(nameEl.value);
+        }
+
+        function updateImgFallback(nameInput) {
+            const tr = nameInput.closest('tr');
+            const imgInput = tr.querySelector('.p-img').value;
+            if(!imgInput) {
+                tr.querySelector('.img-preview').src = generateMujiPlaceholder(nameInput.value);
+            }
+        }
+
+        // 💡 新增：圖片放大的控制函數
+        function openImagePreview(src) {
+            document.getElementById("enlarged-img").src = src;
+            document.getElementById("image-preview-modal").classList.add("active");
+        }
+
+        function closeImagePreview() {
+            document.getElementById("image-preview-modal").classList.remove("active");
+            // 等待動畫結束後清空圖片來源，避免下次點擊瞬間閃爍舊圖
+            setTimeout(() => { document.getElementById("enlarged-img").src = ""; }, 300);
+        }
+
+        // 安全儲存功能 (避開陣列解析 bug)
+        function saveData() {
+            const rows = document.querySelectorAll("#product-tbody tr");
+            const dataList = new Array();
+            let hasError = false;
+
+            rows.forEach(row => {
+                const id = row.querySelector(".p-id").value;
+                const name = row.querySelector(".p-name").value.trim();
+                const price = row.querySelector(".p-price").value;
+                const img = row.querySelector(".p-img").value.trim();
+                const desc = row.querySelector(".p-desc").value.trim();
+                const status = row.querySelector(".p-status").value;
+
+                if (!name || !price) hasError = true;
+                
+                const itemObj = { id: id, name: name, price: price, img: img, desc: desc, status: status };
+                dataList.push(itemObj);
+            });
+
+            if (hasError) {
+                showToast("⚠️ 商品名稱與價格不能為空白！", true);
+                return;
+            }
+
+            const saveBtn = document.getElementById("save-btn");
+            saveBtn.innerText = "資料傳送中...";
+            saveBtn.disabled = true;
+
+            const formData = new URLSearchParams();
+            formData.append("action", "updateProducts");
+            formData.append("productsData", JSON.stringify(dataList));
+
+            fetch(API_URL, {
+                method: 'POST',
+                mode: 'no-cors',
+                body: formData
+            }).then(() => {
+                showToast("✅ 儲存成功！前台商品已同步更新。");
+                saveBtn.innerText = "💾 儲存變更並發佈";
+                saveBtn.disabled = false;
+            }).catch(err => {
+                showToast("❌ 儲存發生錯誤，請重試。", true);
+                saveBtn.innerText = "💾 儲存變更並發佈";
+                saveBtn.disabled = false;
+            });
+        }
+    </script>
+</body>
+</html>
